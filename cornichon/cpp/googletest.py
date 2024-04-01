@@ -29,17 +29,13 @@ def Generate(parsed, settings):
 // Third party headers
 #include "gtest/gtest.h"
 
-namespace [[fullnamespace]]
-{
-  class [[testfixture]] : public ::testing::Test
-  {
+namespace [[fullnamespace]] {
+  class [[testfixture]] : public ::testing::Test {
   protected:
-    void SetUp() override
-    {
+    void SetUp() override {
     }
 
-    void TearDown() override
-    {
+    void TearDown() override {
     }
   };
 
@@ -52,8 +48,8 @@ namespace [[fullnamespace]]
     ns = cpputils.NameSpace(settings, namespace)
     buffer = buffer.replace("[[fullnamespace]]", ns.Begin())
     buffer = buffer.replace("[[endnamespace]]", ns.End())
-    decl = "  static void {0}({1})\n"
-    testdecl = f"  TEST_F({testFixtureName}, {0})\n"
+    decl = "  static void {0}({1})"
+    testdecl = f"  TEST_F({testFixtureName}, {{0}})"
     cpp = cpputils.Cpp(settings, decl, testdecl, "  ")
     testBody = cpp.TestBody(scenarios, settings)
     buffer = buffer.replace("[[TestBody]]", testBody)

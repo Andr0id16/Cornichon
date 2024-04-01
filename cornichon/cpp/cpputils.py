@@ -55,13 +55,14 @@ class NameSpace:
 
 
 class Cpp(common.PrintTestBody):
-    def __init__(self, settings, decl, testdecl, indent):
+    def __init__(self, settings, decl, testdecl, indent,braceIndent = " "):
         self.settings = settings
         self.decl = decl
         self.testdecl = testdecl
         self.indent = indent
         self.argModifier = ArgModifier
         self.step = self.indent + '  scenario.[[method]]([[arguments]]);\n'
+        self.braceIndent =  braceIndent
 
     def ScenarioDecl(self, line, fullArgs, settings):
         scenarioName = common.Tokenise(line, self.settings["cases"]["scenario"])
@@ -72,8 +73,7 @@ class Cpp(common.PrintTestBody):
         return self.testdecl.format(scenarioName)
 
     def Body(self, scenario, steps):
-        buffer = """
-[[indent]]{
+        buffer = """ [[braceIndent]]{
 [[indent]]  Scenarios::[[className]] scenario;
 [[steps]]
 [[indent]]}
@@ -81,6 +81,7 @@ class Cpp(common.PrintTestBody):
 """[1:]
         buffer = buffer.replace("[[steps]]", steps.rstrip())
         buffer = buffer.replace("[[indent]]", self.indent)
+        buffer = buffer.replace("[[braceIndent]]",self.braceIndent)
         lines = scenario.lines.split('\n')
         className = common.Tokenise(lines[0], self.settings["cases"]["class"])
         buffer = buffer.replace("[[className]]", className)
@@ -88,7 +89,7 @@ class Cpp(common.PrintTestBody):
 
     def Example(self, line, arguments):
         buffer = """
-[[testName]][[indent]]{
+[[testName]][[braceIndent]]{
 [[indent]]  [[scenario]]([[arguments]]);
 [[indent]]}
 """
@@ -97,6 +98,7 @@ class Cpp(common.PrintTestBody):
         testName = common.Tokenise(testName, self.settings["cases"]["test"])
         testName = self.testdecl.format(testName)
         buffer = buffer.replace("[[testName]]", testName)
+        buffer = buffer.replace("[[braceIndent]]", self.braceIndent)
         buffer = buffer.replace("[[indent]]", self.indent)
         buffer = buffer.replace("[[scenario]]", scenario)
         buffer = buffer.replace("[[arguments]]", arguments)

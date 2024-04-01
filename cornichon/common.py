@@ -174,19 +174,19 @@ class PrintScenario:
         concat = ""
         steps = []
         typesForRemainingArgs = scenario.examples.types.copy()
+        argumentsFinished = 0
+        
         # parse the sections
         for s in scenario.Steps():
             lines = s[1].split('\n')
             step = gherkin.Step(s[0], s[1])
+            numOfArguments = len(step.params)
             stepName = step.Tokenise(settings["cases"]["step"])
             if 0 != steps.count(stepName):
                 continue
             steps.append(stepName)
-            arguments = step.ArgumentList(typesForRemainingArgs, settings["types"])
-            if arguments:
-                # Remove types for consumed arguments so that length of example types list matches number of remaining arguments
-                numArgumentsProcessed = len(arguments.split(","))
-                typesForRemainingArgs = typesForRemainingArgs[numArgumentsProcessed:]
+            arguments = step.ArgumentList(typesForRemainingArgs[argumentsFinished:argumentsFinished+len(step.params)], settings["types"])
+            argumentsFinished+=numOfArguments
             buffer = self.step
             buffer = buffer.replace("[[stepName]]", stepName)
             buffer = buffer.replace("[[arguments]]", arguments)
@@ -197,5 +197,43 @@ class PrintScenario:
         return concat.rstrip()
     
 
+
+
+# Scenario Outline: RecieveAndSendMessage
+#         Given socket1
+#         And socket2
+#         And socket1 has called bind
+#         And socket2 has called bind
+#         And a <message>    args = ["message"] types = ['string','uint']
+#         And socket1 has started to listen
+#         And socket1 has accepted
+#         And socket2 has connected
+#         When socket1 sends message
+#         And socket2 recieves message
+#         Then the result is greater than -1
+#         And the result is <len> args = ["len"] types = ['string','uint'] # types not updated to match the number of arguments finished
+#         Examples:
+#             | message | len |
+#             | Hi      | 2   |
+#             | Hello   | 5   |
+
+
+# Scenario Outline: RecieveAndSendMessage
+#         Given socket1
+#         And socket2
+#         And socket1 has called bind
+#         And socket2 has called bind
+#         And a <message>    args = ["message"] types = ['string','uint']; current=0; numOfArguments = 1; use types[0:1]
+#         And socket1 has started to listen
+#         And socket1 has accepted
+#         And socket2 has connected
+#         When socket1 sends message
+#         And socket2 recieves message
+#         Then the result is greater than -1
+#         And the result is <len> args = ["len"] types = ['string','uint']; current=1; numOfArguments = 1; use types[1:2]
+#         Examples:
+#             | message | len |
+#             | Hi      | 2   |
+#             | Hello   | 5   |
 
 

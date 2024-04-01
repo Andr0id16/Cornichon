@@ -21,8 +21,7 @@ class PrintScenario(common.PrintScenario):
         self.sub = '" << %s << "'
         self.step = """
     /// Gherkin DSL step
-    void [[stepName]]([[arguments]])
-    {
+    void [[stepName]]([[arguments]]) {
 [[description]]
     }
 
@@ -48,8 +47,7 @@ def Generate(parsed, settings):
 #include <iostream>
 #include <string>
 
-namespace [[fullnamespace]]
-{
+namespace [[fullnamespace]] {
 """[1:]
 
     namespace = common.Tokenise(featureName, settings["cases"]["namespace"])
@@ -59,12 +57,10 @@ namespace [[fullnamespace]]
     for scenario in scenarios:
         buffer = """
   /// Test class scenario
-  class [[featureName]]
-  {
+  class [[featureName]] {
   public:
     /// Constructor
-    [[featureName]]()
-    {
+    [[featureName]]() {
 [[documentation]]
     }
 
