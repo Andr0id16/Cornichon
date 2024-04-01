@@ -21,7 +21,7 @@ def Generate(parsed, settings):
     feature = parsed[1]
     featureName = common.FeatureName(feature, settings["cases"]["namespace"])
     namespace = common.Tokenise(featureName, settings["cases"]["namespace"])
-
+    testFixtureName = settings["scenarios file"].split(".")[0]
     buffer = """
 // Other bespoke headers
 #include "[[scenarios file]]"
@@ -31,7 +31,7 @@ def Generate(parsed, settings):
 
 namespace [[fullnamespace]]
 {
-  class TestFixture : public ::testing::Test
+  class [[testfixture]] : public ::testing::Test
   {
   protected:
     void SetUp() override
@@ -48,13 +48,12 @@ namespace [[fullnamespace]]
 """[1:]
 
     buffer = buffer.replace("[[scenarios file]]", settings["scenarios file"])
-
+    buffer = buffer.replace("[[testfixture]]",testFixtureName)
     ns = cpputils.NameSpace(settings, namespace)
     buffer = buffer.replace("[[fullnamespace]]", ns.Begin())
     buffer = buffer.replace("[[endnamespace]]", ns.End())
-
     decl = "  static void {0}({1})\n"
-    testdecl = "  TEST_F(TestFixture, {0})\n"
+    testdecl = f"  TEST_F({testFixtureName}, {0})\n"
     cpp = cpputils.Cpp(settings, decl, testdecl, "  ")
     testBody = cpp.TestBody(scenarios, settings)
     buffer = buffer.replace("[[TestBody]]", testBody)
