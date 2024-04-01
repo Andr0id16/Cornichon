@@ -173,6 +173,7 @@ class PrintScenario:
     def Steps(self, scenario, settings):
         concat = ""
         steps = []
+        typesForRemainingArgs = scenario.examples.types.copy()
         # parse the sections
         for s in scenario.Steps():
             lines = s[1].split('\n')
@@ -181,7 +182,11 @@ class PrintScenario:
             if 0 != steps.count(stepName):
                 continue
             steps.append(stepName)
-            arguments = step.ArgumentList(scenario.examples.types, settings["types"])
+            arguments = step.ArgumentList(typesForRemainingArgs, settings["types"])
+            if arguments:
+                # Remove types for consumed arguments so that length of example types list matches number of remaining arguments
+                numArgumentsProcessed = len(arguments.split(","))
+                typesForRemainingArgs = typesForRemainingArgs[numArgumentsProcessed:]
             buffer = self.step
             buffer = buffer.replace("[[stepName]]", stepName)
             buffer = buffer.replace("[[arguments]]", arguments)
@@ -190,3 +195,7 @@ class PrintScenario:
             buffer = buffer.replace("[[description]]", description)
             concat += buffer
         return concat.rstrip()
+    
+
+
+
