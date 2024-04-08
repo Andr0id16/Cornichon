@@ -30,14 +30,14 @@ def Generate(parsed, settings):
 #include "gtest/gtest.h"
 
 namespace [[fullnamespace]][[braceSep]]{
-  class [[testfixture]] : public ::testing::Test[[braceIndent]]{
-  protected:
-    void SetUp() override[[braceIndentL2]]{
-    }
+[[indent]]class [[testfixture]] : public ::testing::Test[[braceIndent]]{
+[[indent]][[indent]]protected:
+[[indent]][[indent]][[indent]]void SetUp() override[[braceIndentL3]]{
+[[indent]][[indent]][[indent]]}
 
-    void TearDown() override[[braceIndentL2]]{
-    }
-  };
+[[indent]][[indent]][[indent]]void TearDown() override[[braceIndentL3]]{
+[[indent]][[indent]][[indent]]}
+[[indent]]};
 
 [[TestBody]]
 [[endnamespace]]
@@ -52,9 +52,9 @@ namespace [[fullnamespace]][[braceSep]]{
     testdecl = f"  TEST_F({testFixtureName}, {{0}})"
     cpp = cpputils.Cpp(settings, decl, testdecl, settings['indent'])
     buffer = buffer.replace("[[braceIndent]]",settings['braceIndent'])
-    braceIndentL2 = (settings['bracesep'] + settings['indent']*2) if '\n' in settings['bracesep'] else  settings['bracesep']
-    buffer = buffer.replace("[[braceIndentL2]]",braceIndentL2)
-
+    braceIndentL3 = (settings['bracesep'] + settings['indent']*3) if '\n' in settings['bracesep'] else  settings['bracesep']
+    buffer = buffer.replace("[[braceIndentL3]]",braceIndentL3)
+    buffer = buffer.replace("[[indent]]",settings['indent'])
     testBody = cpp.TestBody(scenarios, settings)
     buffer = buffer.replace("[[TestBody]]", testBody)
     buffer = buffer.replace("[[braceSep]]", settings['bracesep'])

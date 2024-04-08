@@ -12,18 +12,25 @@ def HelpSettings():
 
 
 class PrintScenario(common.PrintScenario):
-    def __init__(self):
+    def __init__(self,settings):
         super().__init__()
-        self.line = "\n      std::clog << %s << std::endl;"
+        self.line = f"\n{settings['indent']*4}std::clog << %s << std::endl;"
         self.contractions = {' << ""': '', ' "" << ': ' '}
         self.sub = '" << %s << "'
         self.step = """
-    /// Gherkin DSL step
-    void [[stepName]]([[arguments]]) {
+[[indent]][[indent]][[indent]]/// Gherkin DSL step
+[[indent]][[indent]][[indent]]void [[stepName]]([[arguments]])[[braceIndentL3]]{
 [[description]]
-    }
+[[indent]][[indent]][[indent]]}
 
 """[1:]
+        # self.step = self.step.replace("[[braceIndent]]",settings['braceIndent'])
+        braceIndentL3 = (settings['bracesep'] + settings['indent']*3) if '\n' in settings['bracesep'] else settings['bracesep']
+
+        self.step = self.step.replace("[[braceIndentL3]]",braceIndentL3)
+
+        # self.step = self.step.replace("[[braceSep]]",settings['bracesep'])
+        self.step = self.step.replace("[[indent]]",settings['indent'])
 
 
 def Generate(parsed, settings):
@@ -31,7 +38,7 @@ def Generate(parsed, settings):
     feature = parsed[1]
     featureName = common.FeatureName(feature, settings["cases"]["namespace"])
 
-    printer = PrintScenario()
+    printer = PrintScenario(settings) # !!!THE PRINT SCENARIO CLASS DEFINED IN THIS FILE!!!
     featureDesc = printer.FeatureDesc(feature)
 
     concat = """
@@ -56,11 +63,11 @@ namespace [[fullnamespace]] {
         buffer = """
 [[indent]]/// Test class scenario
 [[indent]]class [[featureName]][[braceIndent]]{
-[[indent]]public:
-[[indent]]/// Constructor
-[[indent]][[indent]][[featureName]]()[[braceIndentL2]]{
+[[indent]][[indent]]public:
+[[indent]][[indent]][[indent]]/// Constructor
+[[indent]][[indent]][[indent]][[featureName]]()[[braceIndentL3]]{
 [[documentation]]
-[[indent]][[indent]]}
+[[indent]][[indent]][[indent]]}
 
 [[steps]]
   };
@@ -72,8 +79,10 @@ namespace [[fullnamespace]] {
         buffer = buffer.replace("[[documentation]]", documentation)
         buffer = buffer.replace("[[steps]]", printer.Steps(scenario, settings))
         buffer = buffer.replace("[[braceIndent]]",settings['braceIndent'])
-        braceIndentL2 = (settings['bracesep'] + settings['indent']*2) if '\n' in settings['bracesep'] else  settings['bracesep']
-        buffer = buffer.replace("[[braceIndentL2]]",braceIndentL2)
+        braceIndentL3 = (settings['bracesep'] + settings['indent']*3) if '\n' in settings['bracesep'] else settings['bracesep']
+
+        buffer = buffer.replace("[[braceIndentL3]]",braceIndentL3)
+
         buffer = buffer.replace("[[braceSep]]",settings['bracesep'])
         buffer = buffer.replace("[[indent]]",settings['indent'])
         concat += buffer
@@ -116,11 +125,11 @@ namespace [[fullnamespace]][[braceSep]]{
         buffer = """
 [[indent]]/// Test class scenario
 [[indent]]class [[featureName]][[braceIndent]]{
-[[indent]]public:
-[[indent]]/// Constructor
-[[indent]][[indent]][[featureName]]()[[braceIndentL2]]{
+[[indent]][[indent]]public:
+[[indent]][[indent]][[indent]]/// Constructor
+[[indent]][[indent]][[indent]][[featureName]]()[[braceIndentL3]]{
 [[documentation]]
-[[indent]][[indent]]}
+[[indent]][[indent]][[indent]]}
 
 [[steps]]
   };
