@@ -173,19 +173,29 @@ class PrintScenario:
     def Steps(self, scenario, settings):
         concat = ""
         steps = []
-        typesForRemainingArgs = scenario.examples.types.copy()
-        argumentsFinished = 0
+
+        
+        typesForArgs = scenario.examples.types
+        # Keep track of number of arguments that have been completed in this scenario,initally no argument has been assigned
+        argumentsFinished = 0 
         
         # parse the sections
         for s in scenario.Steps():
             lines = s[1].split('\n')
             step = gherkin.Step(s[0], s[1])
+            # numOfArguments is set to the number of parameters (in <> or "") within current step
             numOfArguments = len(step.params)
             stepName = step.Tokenise(settings["cases"]["step"])
             if 0 != steps.count(stepName):
                 continue
             steps.append(stepName)
-            arguments = step.ArgumentList(typesForRemainingArgs[argumentsFinished:argumentsFinished+len(step.params)], settings["types"])
+            
+            # types for remaining args set from number of finished arguments to number of finished arguments + number of parameter in current step
+            typesForRemainingArgs = typesForArgs[argumentsFinished:argumentsFinished+len(step.params)]
+            
+            arguments = step.ArgumentList(typesForRemainingArgs, settings["types"])
+
+            # add the number of arguments that have been processed in this step to total finished for this scenario
             argumentsFinished+=numOfArguments
             buffer = self.step
             buffer = buffer.replace("[[stepName]]", stepName)
@@ -198,7 +208,7 @@ class PrintScenario:
     
 
 
-
+## -- Old Version of Cornichon --
 # Scenario Outline: RecieveAndSendMessage
 #         Given socket1
 #         And socket2
@@ -218,6 +228,7 @@ class PrintScenario:
 #             | Hello   | 5   |
 
 
+## -- New Version of Conrichon
 # Scenario Outline: RecieveAndSendMessage
 #         Given socket1
 #         And socket2

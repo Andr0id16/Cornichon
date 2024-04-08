@@ -1,7 +1,5 @@
 import common
 import cpputils
-import gherkin
-
 
 def Settings():
     settings = cpputils.Settings()
@@ -56,13 +54,13 @@ namespace [[fullnamespace]] {
 
     for scenario in scenarios:
         buffer = """
-  /// Test class scenario
-  class [[featureName]] {
-  public:
-    /// Constructor
-    [[featureName]]() {
+[[indent]]/// Test class scenario
+[[indent]]class [[featureName]][[braceIndent]]{
+[[indent]]public:
+[[indent]]/// Constructor
+[[indent]][[indent]][[featureName]]()[[braceIndentL2]]{
 [[documentation]]
-    }
+[[indent]][[indent]]}
 
 [[steps]]
   };
@@ -73,9 +71,127 @@ namespace [[fullnamespace]] {
         documentation = printer.Documentation(scenario, featureDesc, settings)
         buffer = buffer.replace("[[documentation]]", documentation)
         buffer = buffer.replace("[[steps]]", printer.Steps(scenario, settings))
+        buffer = buffer.replace("[[braceIndent]]",settings['braceIndent'])
+        braceIndentL2 = (settings['bracesep'] + settings['indent']*2) if '\n' in settings['bracesep'] else  settings['bracesep']
+        buffer = buffer.replace("[[braceIndentL2]]",braceIndentL2)
+        buffer = buffer.replace("[[braceSep]]",settings['bracesep'])
+        buffer = buffer.replace("[[indent]]",settings['indent'])
         concat += buffer
 
     concat = concat[:-2] + """
 [[endnamespace]]
 """.replace("[[endnamespace]]", namespace.End())
     return concat
+
+
+def ReGenerate(parsed:tuple[list,str], settings:dict):
+    '''
+    Similar to the generate function
+    
+    Used with parse diff to generate hpp file text for new scenarios only
+
+    Args:
+        parsed: two-tuple of:
+            1. list of scenario objects
+            2. string feature name
+        setting: settings for given framework
+    '''
+    scenarios = parsed[0]
+    feature = parsed[1]
+    featureName = common.FeatureName(feature, settings["cases"]["namespace"])
+
+    printer = PrintScenario()
+    featureDesc = printer.FeatureDesc(feature)
+    # There are two extra spaces followed by new line after "[[fullnamespace]] {", this is to preserve opening "{"  in case there are no new scenarios
+    # In case of no new scenarios and no extra spaces the 'concat = concat[:-2] + """' line removes "{"
+    concat = """
+namespace [[fullnamespace]][[braceSep]]{  
+"""[1:]
+
+    namespace = common.Tokenise(featureName, settings["cases"]["namespace"])
+    namespace = cpputils.NameSpace(settings, namespace + "::Scenarios")
+    concat = concat.replace("[[fullnamespace]]", namespace.Begin())
+    beforeScenarios = concat
+    for scenario in scenarios:
+        buffer = """
+[[indent]]/// Test class scenario
+[[indent]]class [[featureName]][[braceIndent]]{
+[[indent]]public:
+[[indent]]/// Constructor
+[[indent]][[indent]][[featureName]]()[[braceIndentL2]]{
+[[documentation]]
+[[indent]][[indent]]}
+
+[[steps]]
+  };
+
+"""[1:]
+
+        buffer = buffer.replace("[[featureName]]", common.Tokenise(scenario.lines, settings["cases"]["class"]))
+        documentation = printer.Documentation(scenario, featureDesc, settings)
+        buffer = buffer.replace("[[documentation]]", documentation)
+        buffer = buffer.replace("[[steps]]", printer.Steps(scenario, settings))
+        buffer = buffer.replace("[[braceIndent]]",settings['braceIndent'])
+        braceIndentL2 = (settings['bracesep'] + settings['indent']*2) if '\n' in settings['bracesep'] else  settings['bracesep']
+        buffer = buffer.replace("[[braceIndentL2]]",braceIndentL2)
+        buffer = buffer.replace("[[braceSep]]",settings['bracesep'])
+        buffer = buffer.replace("[[indent]]",settings['indent'])
+
+
+        concat += buffer
+
+    if(len(concat)==len(beforeScenarios)):
+        return ""
+    concat = concat[:-2] + """
+[[endnamespace]]
+""".replace("[[endnamespace]]", namespace.End())
+    return concat
+
+
+import re
+def ParseOutput(scenariosFileText:str):
+    '''
+    Get all scenario names in a header file
+    Args:
+        scenariosFileText: string representing content of the header file
+    Returns:
+        scenarios: set of all scenario names found in text
+    '''
+    scenarios = set()
+    pattern = re.compile(r"(class[\s\\]*)(\S*)([\s\\]*{)")
+    matches = re.findall(pattern,scenariosFileText)
+    for match in matches:
+        scenarios.add(match[1])
+    return scenarios
+
+
+import copy
+def ParseDiff(parsed:tuple[list,str],symbols:set,settings:dict):
+    '''
+    Find difference in symbols (scenario names) found in feature file and those in existing hpp file  
+    Args:
+        parsed: two-tuple of:
+            1. list of scenario objects
+            2. string feature name
+        symbols: set of test case names found in existing hpp file
+        setting: settings for given framework
+    Returns:
+        A new object of type same as parsed but only the containing the differing scenarios
+    
+    Example:
+    >>> parsed = gherkin.Parse(input, settings)
+        existingSymbols = ParseOutput(existingText)
+        newParsed = ParseDiff(parsed,existingSymbols,settings)
+    '''
+    diff = []
+    scenarios = parsed[0]
+    for scenario in scenarios:
+
+        # common.Tokenise creates scenario name from a sentence like "Get a socket" => "GetASocket" 
+        scenarioName = common.Tokenise(scenario.lines.split("\n")[0], settings["cases"]["class"])
+        if(scenarioName not in symbols):
+            diff.append(scenario)
+    newParsed = copy.deepcopy(parsed)
+    newParsed[0] = diff
+    return newParsed
+            

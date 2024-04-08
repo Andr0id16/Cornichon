@@ -55,14 +55,16 @@ class NameSpace:
 
 
 class Cpp(common.PrintTestBody):
-    def __init__(self, settings, decl, testdecl, indent,braceIndent = " "):
+    def __init__(self, settings, decl, testdecl, indent):
         self.settings = settings
         self.decl = decl
         self.testdecl = testdecl
         self.indent = indent
         self.argModifier = ArgModifier
         self.step = self.indent + '  scenario.[[method]]([[arguments]]);\n'
-        self.braceIndent =  braceIndent
+        self.braceIndent =  settings['bracesep']
+        if('\n' in self.braceIndent):
+            self.braceIndent += self.indent
 
     def ScenarioDecl(self, line, fullArgs, settings):
         scenarioName = common.Tokenise(line, self.settings["cases"]["scenario"])

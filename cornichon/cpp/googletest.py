@@ -21,7 +21,7 @@ def Generate(parsed, settings):
     feature = parsed[1]
     featureName = common.FeatureName(feature, settings["cases"]["namespace"])
     namespace = common.Tokenise(featureName, settings["cases"]["namespace"])
-    testFixtureName = settings["scenarios file"].split(".")[0]
+    testFixtureName = settings['test fixture name']
     buffer = """
 // Other bespoke headers
 #include "[[scenarios file]]"
@@ -29,13 +29,13 @@ def Generate(parsed, settings):
 // Third party headers
 #include "gtest/gtest.h"
 
-namespace [[fullnamespace]] {
-  class [[testfixture]] : public ::testing::Test {
+namespace [[fullnamespace]][[braceSep]]{
+  class [[testfixture]] : public ::testing::Test[[braceIndent]]{
   protected:
-    void SetUp() override {
+    void SetUp() override[[braceIndentL2]]{
     }
 
-    void TearDown() override {
+    void TearDown() override[[braceIndentL2]]{
     }
   };
 
@@ -50,8 +50,109 @@ namespace [[fullnamespace]] {
     buffer = buffer.replace("[[endnamespace]]", ns.End())
     decl = "  static void {0}({1})"
     testdecl = f"  TEST_F({testFixtureName}, {{0}})"
-    cpp = cpputils.Cpp(settings, decl, testdecl, "  ")
+    cpp = cpputils.Cpp(settings, decl, testdecl, settings['indent'])
+    buffer = buffer.replace("[[braceIndent]]",settings['braceIndent'])
+    braceIndentL2 = (settings['bracesep'] + settings['indent']*2) if '\n' in settings['bracesep'] else  settings['bracesep']
+    buffer = buffer.replace("[[braceIndentL2]]",braceIndentL2)
+
     testBody = cpp.TestBody(scenarios, settings)
     buffer = buffer.replace("[[TestBody]]", testBody)
+    buffer = buffer.replace("[[braceSep]]", settings['bracesep'])
+
 
     return buffer
+
+
+
+def ReGenerate(parsed:tuple[list,str], settings:dict):
+    '''
+    Similar to the generate function
+    
+    Used with parse diff to generate cpp file text for new test cases only
+
+    Args:
+        parsed: two-tuple of:
+            1. list of scenario objects
+            2. string feature name
+        setting: settings for given framework
+    '''
+    scenarios = parsed[0]
+    feature = parsed[1]
+    featureName = common.FeatureName(feature, settings["cases"]["namespace"])
+    namespace = common.Tokenise(featureName, settings["cases"]["namespace"])
+    testFixtureName = settings['test fixture name']    
+    buffer = """
+namespace [[fullnamespace]][[braceSep]]{
+  
+
+[[TestBody]]
+[[endnamespace]]
+"""[1:]
+
+    ns = cpputils.NameSpace(settings, namespace)
+    buffer = buffer.replace("[[fullnamespace]]", ns.Begin())
+    buffer = buffer.replace("[[endnamespace]]", ns.End())
+    decl = "  static void {0}({1})"
+    testdecl = f"  TEST_F({testFixtureName}, {{0}})"
+    cpp = cpputils.Cpp(settings, decl, testdecl, settings['indent'])
+    buffer = buffer.replace("[[braceIndent]]",settings['braceIndent'])
+    braceIndentL2 = (settings['bracesep'] + settings['indent']*2) if '\n' in settings['bracesep'] else  settings['bracesep']
+    buffer = buffer.replace("[[braceIndentL2]]",braceIndentL2)
+    testBody = cpp.TestBody(scenarios, settings)
+    buffer = buffer.replace("[[TestBody]]", testBody)
+    buffer = buffer.replace("[[braceSep]]", settings['bracesep'])
+
+
+    # if ReGenerate is called with no differing test cases
+    if(len(testBody.strip())==0):
+        return ""
+    return buffer
+
+import re
+def ParseOutput(googleTestFileText:str):
+    '''
+    Get all test case names in a cpp file
+    Args:
+        googleTestFileText: string representing content of the cpp file
+    Returns:
+        testCases: set of all test case names found in text
+    '''
+    testCases = set()
+    
+    pattern = re.compile(r"(Scenarios::)([\s\\]*)([^\s]*)")
+    matches = re.findall(pattern,googleTestFileText)
+    for match in matches:
+        testCases.add(match[2])
+    return testCases
+
+import copy
+def ParseDiff(parsed:tuple[list,str],symbols:set,settings:dict):
+    '''
+    Find difference in symbols (scenario names) found in feature file and those in existing cpp file  
+    Args:
+        parsed: two-tuple of:
+            1. list of scenario objects
+            2. string feature name
+        symbols: set of test case names found in existing cpp file
+        setting: settings for given framework
+    Returns:
+        A new object of type same as parsed but only the containing the differing test cases
+    
+    Example:
+    >>> parsed = gherkin.Parse(input, settings)
+        existingSymbols = ParseOutput(existingText)
+        newParsed = ParseDiff(parsed,existingSymbols,settings)
+    '''
+
+    diff = []
+    scenarios = parsed[0]
+    for scenario in scenarios:
+        # common.Tokenise creates test case name from a sentence like "Get a socket" => "GetASocket"
+        testCaseName = common.Tokenise(scenario.lines.split("\n")[0], settings["cases"]["test"])
+        if(testCaseName not in symbols):
+            diff.append(scenario)
+    newParsed = copy.deepcopy(parsed)
+    newParsed[0] = diff
+    return newParsed
+            
+    
