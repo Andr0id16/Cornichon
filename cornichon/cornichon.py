@@ -42,7 +42,10 @@ def Generate(input, settings, output):
     mod = gherkin.Import(output)
     stubCode = mod.Generate(parsed, settings)
     gherkin.Import(output, True)
-    stubCode = LimitCharacters(stubCode,PATTERN,DEFAULT_CHUNK_SIZE)
+
+    # skip if wrapsize 0 (no-wrap) or no pattern provided
+    if(settings['wrapsize'] and settings['pattern']):
+        stubCode = LimitCharacters(stubCode,settings['wrapsize'],settings['pattern'])
     return stubCode
 
 def ReGenerate(input:str, existingText:str, settings:dict, output:str):
@@ -53,27 +56,28 @@ def ReGenerate(input:str, existingText:str, settings:dict, output:str):
     newParsed = mod.ParseDiff(parsed,existingSymbols,settings)
     stubCode = mod.ReGenerate(newParsed, settings)
     gherkin.Import(output, True)
-    stubCode = LimitCharacters(stubCode,PATTERN,DEFAULT_CHUNK_SIZE)
+    
+    # skip if wrapsize 0 (no-wrap) or no pattern provided
+    if(settings['wrapsize'] and settings['pattern']):
+        stubCode = LimitCharacters(stubCode,settings['wrapsize'],settings['pattern'])
     return stubCode
 
-DEFAULT_CHUNK_SIZE = 250
-
-# characters where text can be split
-PATTERN = [' ','+','-','::',",","(","["]
 
 
-def LimitCharacters(text:str,pattern:list[str]=PATTERN,chunkSize:int=DEFAULT_CHUNK_SIZE):
+
+
+def LimitCharacters(text:str,chunkSize:int,pattern:list[str]):
     '''
     Transform a string into lines with at most chunkSize characters per line
     If possible string is split at 
 
     Args:
         text : string to be transformed
-        chunkSize : maximum size of line, DEFAULT_CHUNK_SIZE = 250
+        chunkSize : maximum size of line
     Returns:
         transformed string
     Examples:
-    >>> LimitCharacters("Paragh with more than 250 chars in a line",[' ','+','-','::',",","(","["],250)
+    >>> LimitCharacters("Paragh with more than 250 chars in a line",250,[' ','+','-','::',",","(","["])
     '''
     lines = text.split("\n")
     for index,line in enumerate(lines):
@@ -81,10 +85,10 @@ def LimitCharacters(text:str,pattern:list[str]=PATTERN,chunkSize:int=DEFAULT_CHU
         if(len(line)>chunkSize):
             try:
                 # try splitting at character in pattern
-                lines[index] = CreateAndWrapChunksSmart(line,pattern,chunkSize) 
+                lines[index] = CreateAndWrapChunksSmart(line,chunkSize,pattern) 
             except ValueError as e:
                 # if not possible, split at the 250th character, doesn't preserve indentation 
-                lines[index] = CreateAndWrapChunks(line,chunkSize=DEFAULT_CHUNK_SIZE)
+                lines[index] = CreateAndWrapChunks(line,chunkSize)
                 print(f"line {index}:",e, ", splitting using dumb method")
             except Exception as e:
                 print(f"line {index}:",e)
@@ -92,7 +96,7 @@ def LimitCharacters(text:str,pattern:list[str]=PATTERN,chunkSize:int=DEFAULT_CHU
 
 
 
-def CreateAndWrapChunks(line:str,chunkSize:int=DEFAULT_CHUNK_SIZE):
+def CreateAndWrapChunks(line:str,chunkSize:int):
     '''
     Split line into lines with at most chunkSize characters per line by splitting at indices that are multiples of chunkSize
 
@@ -100,13 +104,13 @@ def CreateAndWrapChunks(line:str,chunkSize:int=DEFAULT_CHUNK_SIZE):
 
     Args:
         line : line to be transformed
-        chunkSize : maximum size of line, DEFAULT_CHUNK_SIZE = 250
+        chunkSize : maximum size of line
 
     Returns:
         transformed line
 
     Examples:
-    >>> CreateAndWrapChunks("Line with more than 250 chars")
+    >>> CreateAndWrapChunks("Line with more than 250 chars",250)
     '''    
     # might be faster than loop
     # list comprehension for getting chunks of size chunkSize
@@ -114,20 +118,20 @@ def CreateAndWrapChunks(line:str,chunkSize:int=DEFAULT_CHUNK_SIZE):
     # subtracting one for the line splicing character "\"
     return '\\\n'.join([line[i:i+chunkSize-1] for i in range(0,len(line),chunkSize-1)])
 
-def CreateAndWrapChunksSmart(line:str,pattern:list[str],chunkSize:int=DEFAULT_CHUNK_SIZE,):
+def CreateAndWrapChunksSmart(line:str,chunkSize:int,pattern:list[str]):
     '''
     Split line into lines with at most chunkSize characters per line by splitting at last valid one of " +-*," characters
 
     Args:
         line : line to be transformed
         pattern : list of characters that are valid split characters
-        chunkSize : maximum size of line, DEFAULT_CHUNK_SIZE = 250
+        chunkSize : maximum size of line
 
     Returns:
         transformed line
 
     Examples:
-    >>> CreateAndWrapChunksSmart("Line with more than 250 chars",[" ","+"],250)
+    >>> CreateAndWrapChunksSmart("Line with more than 250 chars",250,[" ","+"])
     '''
 
     chunkStart=0
