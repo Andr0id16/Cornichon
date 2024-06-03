@@ -1,3 +1,4 @@
+from __future__ import annotations
 import gherkin
 
 
@@ -79,14 +80,15 @@ def UnmodifiedArg(val, type):
     return val
 
 
-def ArgumentList(args, types, formats, argModifier, sep=", "):
+def ArgumentList(args, types, typeExpansions, argModifier, sep=", "):
     if len(args) == 0:
         return ""
 
     line = ""
     for i in range(len(args)):
         type = types[i]
-        bit = formats[type].format(argModifier(args[i], type))
+        bit = argModifier(args[i], type)
+        bit = typeExpansions[type].format(bit)
         if len(bit.strip()) == 0:
             continue
         line = "{}{}{}".format(line, sep, bit)
@@ -104,6 +106,7 @@ class PrintTestBody:
 
     def TestBody(self, scenarios, settings):
         concat = ""
+
         # Create the scenarios
         for scenario in scenarios:
             concat += self.Scenario(scenario, settings)
@@ -174,29 +177,27 @@ class PrintScenario:
         concat = ""
         steps = []
 
-        
-        typesForArgs = scenario.examples.types
-        # Keep track of number of arguments that have been completed in this scenario,initally no argument has been assigned
-        argumentsFinished = 0 
-        
-        # parse the sections
+        # ISSUE: "And" Steps are skipped - Tests contain erroneous code
+        # When you add a <second> => [When you add a , <second>]
+        # And you add a <third> => [When you add a ,  <third>]
+        # Since index 0 items are same, "And" is considered duplicate and
+        # skipped
         for s in scenario.Steps():
             lines = s[1].split('\n')
             step = gherkin.Step(s[0], s[1])
-            # numOfArguments is set to the number of parameters (in <> or "") within current step
-            numOfArguments = len(step.params)
             stepName = step.Tokenise(settings["cases"]["step"])
             if 0 != steps.count(stepName):
                 continue
             steps.append(stepName)
-            
-            # types for remaining args set from number of finished arguments to number of finished arguments + number of parameter in current step
-            typesForRemainingArgs = typesForArgs[argumentsFinished:argumentsFinished+len(step.params)]
-            
-            arguments = step.ArgumentList(typesForRemainingArgs, settings["types"])
 
-            # add the number of arguments that have been processed in this step to total finished for this scenario
-            argumentsFinished+=numOfArguments
+            # A list of types for each parameter in the step based on the types found in the scenario example
+            try:
+                typesForParams = []
+                for param in step.params:
+                    typesForParams.append(scenario.examples.typesDict[param])
+            except KeyError as e:
+                raise KeyError(f'KeyError: {e}, while processing lines - {lines[0]}') from e
+            arguments = step.ArgumentList(typesForParams, settings["types"])
             buffer = self.step
             buffer = buffer.replace("[[stepName]]", stepName)
             buffer = buffer.replace("[[arguments]]", arguments)
@@ -205,46 +206,3 @@ class PrintScenario:
             buffer = buffer.replace("[[description]]", description)
             concat += buffer
         return concat.rstrip()
-    
-
-
-## -- Old Version of Cornichon --
-# Scenario Outline: RecieveAndSendMessage
-#         Given socket1
-#         And socket2
-#         And socket1 has called bind
-#         And socket2 has called bind
-#         And a <message>    args = ["message"] types = ['string','uint']
-#         And socket1 has started to listen
-#         And socket1 has accepted
-#         And socket2 has connected
-#         When socket1 sends message
-#         And socket2 recieves message
-#         Then the result is greater than -1
-#         And the result is <len> args = ["len"] types = ['string','uint'] # types not updated to match the number of arguments finished
-#         Examples:
-#             | message | len |
-#             | Hi      | 2   |
-#             | Hello   | 5   |
-
-
-## -- New Version of Conrichon
-# Scenario Outline: RecieveAndSendMessage
-#         Given socket1
-#         And socket2
-#         And socket1 has called bind
-#         And socket2 has called bind
-#         And a <message>    args = ["message"] types = ['string','uint']; current=0; numOfArguments = 1; use types[0:1]
-#         And socket1 has started to listen
-#         And socket1 has accepted
-#         And socket2 has connected
-#         When socket1 sends message
-#         And socket2 recieves message
-#         Then the result is greater than -1
-#         And the result is <len> args = ["len"] types = ['string','uint']; current=1; numOfArguments = 1; use types[1:2]
-#         Examples:
-#             | message | len |
-#             | Hi      | 2   |
-#             | Hello   | 5   |
-
-

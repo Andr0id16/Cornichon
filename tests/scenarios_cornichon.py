@@ -54,6 +54,7 @@ class Scenarios:
                     fp.write(contents)
                     fp.close()
                 self.assertEqual(old, newlines[i])
+                
 
     class Cppunittest(Scenarios):
         """Test class scenario"""

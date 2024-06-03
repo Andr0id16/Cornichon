@@ -81,10 +81,10 @@ class Step:
     def __init__(self, action, rest):
         self.words = [action]
         self.params = []
-        lines = rest.split('\n')
+        lines = rest.split("\n")
         line = lines[0]
         line = self.ExtractParams(line, '"', '"')
-        line = self.ExtractParams(line, '<', '>')
+        line = self.ExtractParams(line, "<", ">")
         if len(line) > 0:
             self.words.append(line)
 
@@ -97,7 +97,9 @@ class Step:
             if -1 == j:
                 return line
             self.words.append(line[:i].strip())
-            self.params.append(line[i + 1:j].strip())
+            # Skip duplicate param names - to get an ordered set of all params used by a step
+            if (line[i + 1: j].strip() not in self.params):
+                self.params.append(line[i + 1: j].strip())
             line = line[j + 1:]
         return line
 
@@ -117,26 +119,31 @@ class Step:
     def Sub(self, lines, template):
         for i in range(len(self.params)):
             sub = template % self.params[i]
-            lines = lines.replace('<%s>' % self.params[i], sub)
+            lines = lines.replace("<%s>" % self.params[i], sub)
             lines = lines.replace('"%s"' % self.params[i], sub)
         return lines
 
 
 class Examples:
-    def __init__(self, lines):
+    def __init__(self, lines, typeHints=None):
         self.lines = lines
         self.types = []
+        # make parameters and corresponding types independent of order
+        self.typesDict = {}
+        self.typeHints = typeHints
 
     def Exists(self):
-        return self.lines != ''
+        return self.lines != ""
 
     def Types(self):
-        if self.lines == '':
+        if self.lines == "":
             return
 
-        lines = self.lines.split('\n')
+        lines = self.lines.split("\n")
         number = lines[1].count("|") - 1
         self.types = ["none" for i in range(number)]
+        params = [i.strip() for i in lines[1].split("|")[1:]]
+
         for line in lines[2:]:
             vals = line.split("|")
             if len(vals) < number + 1:
@@ -144,6 +151,14 @@ class Examples:
 
             for i in range(number):
                 self.types[i] = Worst(self.types[i], Type(vals[i + 1].strip()))
+                self.typesDict[params[i]] = self.types[i]
+        # Update self.types based on type hints
+        if self.typeHints:
+
+            for i, param in enumerate(params):
+                if param in self.typeHints:
+                    self.types[i] = self.typeHints[param]
+                    self.typesDict[params[i]] = self.types[i]
 
     @staticmethod
     def Arguments(line):
@@ -157,7 +172,7 @@ class Examples:
         if self.lines == "":
             return []
 
-        lines = self.lines.split('\n')
+        lines = self.lines.split("\n")
         for line in lines[1:]:
             args = Examples.Arguments(line)
             return args
@@ -193,21 +208,21 @@ class Scenario:
         return steps
 
 
-def GetScenarios(sections):
+def GetScenarios(sections, typeHints=None):
     scenarios = []
     feature = None
     background = []
     for section in sections:
-        if 1 == ['Given', 'When', 'Then', 'But', 'And'].count(section[0]):
+        if 1 == ["Given", "When", "Then", "But", "And"].count(section[0]):
             if scenarios == []:
                 background.append(section)
             else:
                 scenarios[-1].steps.append(section)
-        elif 'Feature:' == section[0]:
+        elif "Feature:" == section[0]:
             feature = section[1]
-        elif 'Examples:' == section[0]:
-            scenarios[-1].examples = Examples(section[1])
-        elif 'Scenario:' == section[0]:
+        elif "Examples:" == section[0]:
+            scenarios[-1].examples = Examples(section[1], typeHints)
+        elif "Scenario:" == section[0]:
             scenarios.append(Scenario(section[1], background))
 
     for scenario in scenarios:
@@ -217,21 +232,30 @@ def GetScenarios(sections):
 
 
 def GetSections(input, settings):
-    section = ''
+    section = ""
     sections = []
     for line in input:
-        if line.lstrip()[:1] == '#':
+        if line.lstrip()[:1] == "#":
             continue
         bits = line.split()
-        if len(bits) > 0 and bits[0] in ['Feature:', 'Scenario:', 'Examples:', 'Given', 'When', 'Then', 'But', 'And']:
-            if bits[0] != 'And':
+        if len(bits) > 0 and bits[0] in [
+            "Feature:",
+            "Scenario:",
+            "Examples:",
+            "Given",
+            "When",
+            "Then",
+            "But",
+            "And",
+        ]:
+            if bits[0] != "And":
                 section = bits[0]
-            line = ' '.join(bits[1:]) + '\n'
+            line = " ".join(bits[1:]) + "\n"
             sections.append([section, line])
-        elif len(bits) > 2 and ' '.join(bits[:2]) == 'Scenario Outline:':
-            line = ' '.join(bits[2:]) + '\n'
-            sections.append(['Scenario:', line])
-        elif line.strip() == 'Background:':
+        elif len(bits) > 2 and " ".join(bits[:2]) == "Scenario Outline:":
+            line = " ".join(bits[2:]) + "\n"
+            sections.append(["Scenario:", line])
+        elif line.strip() == "Background:":
             continue
         else:
             sections[-1][1] += line
@@ -240,4 +264,4 @@ def GetSections(input, settings):
 
 def Parse(input, settings):
     sections = GetSections(input, settings)
-    return GetScenarios(sections)
+    return GetScenarios(sections, settings.get("typehints", None))
