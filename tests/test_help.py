@@ -24,7 +24,6 @@ class TestHelpSettings(unittest.TestCase):
                 sublevel = '{}["{}"]'.format(level, key)
                 self.TestALevel(settings[key], help[key], sublevel)
             except TypeError as e:
-                print(e)
                 print('Error on {}["{}"]'.format(level, type(settings[key])))
                 self.undoc = True
 
@@ -34,9 +33,7 @@ class TestHelpSettings(unittest.TestCase):
             mod = gherkin.Import(output)
             help = mod.HelpSettings()
             self.TestALevel(settings, help, output)
-        except TypeError as e:
-            print(e)
-            print(output)
+        except TypeError:
             self.undoc = True
 
     def testAll(self):
@@ -60,7 +57,6 @@ class TestOutputTypes(unittest.TestCase):
 
     def testNoNewOutputType(self):
         list = gherkin.ListModules()
-        print(list)
         self.assertEqual(12, len(list), "Remember to update README.md as well as this test")
 
 
